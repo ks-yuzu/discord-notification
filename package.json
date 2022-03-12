@@ -1,0 +1,23 @@
+{
+  "name": "discord-notification",
+  "description": "A simple wrapper of discord.js for simple notification",
+  "version": "0.1",
+  "author": "ks-yuzu",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "async-retry": "^1.3.3",
+    "discord.js": "^13.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.6.2",
+    "@types/async-retry": "^1.4.3"
+  }
+}
