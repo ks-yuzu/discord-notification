@@ -43,15 +43,9 @@ export default class DiscordNotification {
                     {channel: string, username: string, text: string, iconUrl: string, files: string[]}) {
     if ( !this.isExplicitlyInitialized ) { await this._init() }
 
-    const onRetry = (err: Error, i: number) => {
-      if (!err) { return }
-      console.log(`error: ${err}`)
-      console.log(`[${i}] retry...`)
-    }
-
     await retry(
       async () => await this._post({channelName, username, text, iconUrl, files}),
-      {onRetry, retries: this.maxRetry}
+      {onRetry: this.onRetry, retries: this.maxRetry},
     )
 
     // init() されていなければ destroy しておく (handler が残ってプロセスが終了しなくなるのを防ぐ)
@@ -62,16 +56,15 @@ export default class DiscordNotification {
 
   private async _post({channelName, username, text, iconUrl, files}:
                       {channelName: string, username: string, text: string, iconUrl: string, files: string[]}) {
-    const channel = await this._getTextChannelByName(channelName)
-    if (this.verbose) {
-      console.log({channel})
-    }
+    const channel = await retry(
+      async () => this._getTextChannelByName(channelName),
+      {onRetry: this.onRetry, retries: this.maxRetry},
+    )
+    if (this.verbose) { console.log({channel}) }
     if (channel == null) { throw new Error(`Failed to find discord channel: ${channelName}`) }
 
     const webhook = await this._getWebhookForChannel(channel)
-    if (this.verbose) {
-      console.log({webhook})
-    }
+    if (this.verbose) { console.log({webhook}) }
     if (webhook == null) { throw new Error(`Failed to find and create webhook for ${channelName}`) }
 
     await webhook.send({
@@ -89,11 +82,12 @@ export default class DiscordNotification {
     const channel = this.discord.channels.cache.find((ch: Discord.AnyChannel) => {
       return isTextChannel(ch) && ch.name === channelName
     })
-    if (channel != null) { return channel as Discord.TextChannel }
+    if (channel != null) {
+      return channel as Discord.TextChannel
+    }
 
-    await new Promise(r => setTimeout(r, 500))
     if (this.verbose) {
-      console.log('Retry fetch channel metadata')
+      console.log('The channel metadata is not fetched (${this.discord.channels.cache.size()} channels are fetched)')
     }
 
     return null
@@ -105,5 +99,11 @@ export default class DiscordNotification {
 
     console.log('Creating new webhook...')
     return await channel.createWebhook(channel.name, {reason: 'twitter2discord'})
+  }
+
+  private onRetry(err: Error, i: number) {
+    if (!err) { return }
+    console.log(`error: ${err}`)
+    console.log(`[${i}] retry...`)
   }
 }
